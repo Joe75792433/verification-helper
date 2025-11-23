@@ -41,13 +41,13 @@ def get_parser() -> argparse.ArgumentParser:
 
     subparser = subparsers.add_parser('all')
     subparser.add_argument('-j', '--jobs', type=int, default=1)
-    subparser.add_argument('--timeout', type=float, default=600)
+    subparser.add_argument('--timeout', type=float, default=math.inf)
     subparser.add_argument('--tle', type=float, default=60)
 
     subparser = subparsers.add_parser('run')
     subparser.add_argument('path', nargs='*', type=pathlib.Path)
     subparser.add_argument('-j', '--jobs', type=int, default=1)
-    subparser.add_argument('--timeout', type=float, default=600)
+    subparser.add_argument('--timeout', type=float, default=math.inf)
     subparser.add_argument('--tle', type=float, default=60)
 
     subparser = subparsers.add_parser('docs')
@@ -56,25 +56,26 @@ def get_parser() -> argparse.ArgumentParser:
     subparser = subparsers.add_parser('stats')
     subparser.add_argument('-j', '--jobs', type=int, default=1)
 
+    subparser = subparsers.add_parser('test')
+    subparser.add_argument('path', nargs='*', type=pathlib.Path)
+    subparser.add_argument('-j', '--jobs', type=int, default=1)
+    subparser.add_argument('--timeout', type=float, default=math.inf)
+    subparser.add_argument('--tle', type=float, default=60)
+
     return parser
 
 
-def subcommand_run(paths: List[pathlib.Path], *, timeout: float = 600, tle: float = 60, jobs: int = 1) -> onlinejudge_verify.verify.VerificationSummary:
+def subcommand_run(paths: List[pathlib.Path], *, timeout: float = math.inf, tle: float = 60, jobs: int = 1, push_timestamp: bool = True) -> onlinejudge_verify.verify.VerificationSummary:
     """
     :raises Exception: if test.sh fails
     """
 
-    does_push = 'GITHUB_ACTION' in os.environ and 'GITHUB_TOKEN' in os.environ and os.environ.get('GITHUB_REF', '').startswith('refs/heads/')  # NOTE: $GITHUB_REF may be refs/pull/... or refs/tags/...
+    does_push = push_timestamp and 'GITHUB_ACTION' in os.environ and 'GITHUB_TOKEN' in os.environ and os.environ.get('GITHUB_REF', '').startswith('refs/heads/')  # NOTE: $GITHUB_REF may be refs/pull/... or refs/tags/...
     if does_push:
         # checkout in advance to push
         branch = os.environ['GITHUB_REF'][len('refs/heads/'):]
         logger.info('$ git checkout %s', branch)
         subprocess.check_call(['git', 'checkout', branch])
-
-    # NOTE: the GITHUB_TOKEN expires in 60 minutes (https://help.github.com/en/actions/automating-your-workflow-with-github-actions/authenticating-with-the-github_token#about-the-github_token-secret)
-    # use 10 minutes as timeout for safety; 理由はよく分かってないぽいけど以前 20 分でやって死んだことがあるらしいので
-    if 'GITHUB_ACTION' not in os.environ:
-        timeout = math.inf
 
     if not paths:
         paths = sorted(list(onlinejudge_verify.utils.iterate_verification_files()))
@@ -311,6 +312,14 @@ def main(args: Optional[List[str]] = None) -> None:
 
     elif parsed.subcommand == 'stats':
         subcommand_stats(jobs=parsed.jobs)
+
+    elif parsed.subcommand == 'test':
+        _delete_gitignore()
+        generate_gitignore()
+        summary = subcommand_run(paths=parsed.path, timeout=parsed.timeout, tle=parsed.tle, jobs=parsed.jobs, push_timestamp=False)
+        summary.show()
+        if not summary.succeeded():
+            sys.exit(1)
 
     else:
         parser.print_help()
