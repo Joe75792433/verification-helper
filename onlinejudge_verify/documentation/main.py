@@ -1,9 +1,9 @@
 import json
 import pathlib
+from importlib.resources import files
 from logging import getLogger
 from typing import *
 
-import pkg_resources
 import yaml
 
 import onlinejudge_verify.documentation.build as build
@@ -31,7 +31,8 @@ def print_stats_json(*, jobs: int = 1) -> None:
 
 def load_render_config(*, basedir: pathlib.Path) -> SiteRenderConfig:
     # load default _config.yml
-    default_config_yml = yaml.safe_load(pkg_resources.resource_string(_RESOURCE_PACKAGE, _CONFIG_YML_PATH))
+    with files(_RESOURCE_PACKAGE).joinpath(_CONFIG_YML_PATH).open('r', encoding='utf-8') as f:
+        default_config_yml = yaml.safe_load(f)
     assert default_config_yml is not None
     config_yml = default_config_yml
 
