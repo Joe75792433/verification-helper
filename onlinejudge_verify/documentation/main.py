@@ -31,8 +31,7 @@ def print_stats_json(*, jobs: int = 1) -> None:
 
 def load_render_config(*, basedir: pathlib.Path) -> SiteRenderConfig:
     # load default _config.yml
-    with files(_RESOURCE_PACKAGE).joinpath(_CONFIG_YML_PATH).open('r', encoding='utf-8') as f:
-        default_config_yml = yaml.safe_load(f)
+    default_config_yml = yaml.safe_load(files(_RESOURCE_PACKAGE).joinpath(_CONFIG_YML_PATH).read_bytes())
     assert default_config_yml is not None
     config_yml = default_config_yml
 

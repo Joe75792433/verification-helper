@@ -4,10 +4,10 @@
 import copy
 import pathlib
 import traceback
+from importlib.resources import files as files_fn
 from logging import getLogger
 from typing import *
 
-import pkg_resources
 import yaml
 
 import onlinejudge_verify.documentation.front_matter
@@ -197,7 +197,7 @@ def load_static_files(*, site_render_config: SiteRenderConfig) -> Dict[pathlib.P
 
     # load files in onlinejudge_verify_resources/
     for path in _COPIED_STATIC_FILE_PATHS:
-        files[site_render_config.destination_dir / pathlib.Path(path)] = pkg_resources.resource_string(_RESOURCE_PACKAGE, path)
+        files[site_render_config.destination_dir / pathlib.Path(path)] = files_fn(_RESOURCE_PACKAGE).joinpath(path).read_bytes()
 
     # overwrite with docs/static
     for src in site_render_config.static_dir.glob('**/*'):
